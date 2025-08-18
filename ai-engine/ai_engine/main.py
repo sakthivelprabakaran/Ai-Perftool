@@ -1,9 +1,11 @@
 import asyncio
 import json
+import os
 from playwright.async_api import async_playwright
 from typing import Dict, Any, List
 
 from .test_generator import generate_basic_load_test
+from .jmeter_exporter import export_to_jmx
 
 async def extract_forms(page) -> List[Dict[str, Any]]:
     forms_data = []
@@ -100,9 +102,11 @@ async def analyze_page(url: str) -> Dict[str, Any]:
 
 async def main():
     """
-    Main function to test the page analysis and test generation logic.
+    Main function to run the full analysis, generation, and export pipeline.
     """
     url = "http://books.toscrape.com/"
+    output_filename = "test_plan.jmx"
+
     print(f"Starting to analyze page: {url}")
     analysis_data = await analyze_page(url)
 
@@ -110,21 +114,22 @@ async def main():
         print(f"\\n--- Analysis Failed: {analysis_data['error']} ---")
         return
 
-    print("\\n--- Analysis Successful ---")
-
     print("Generating test case from analysis...")
     test_case_data = generate_basic_load_test(analysis_data)
-    print("Test case generation complete.")
 
-    final_output = {
-        "component_analysis": analysis_data,
-        "generated_test_case": test_case_data
-    }
+    print("Exporting test case to JMX format...")
+    jmx_content = export_to_jmx(test_case_data)
 
-    print("\\n--- Final Output ---")
-    # Pretty print the combined JSON
-    print(json.dumps(final_output, indent=2))
-    print("----------------------")
+    # The script is run from the `/app` directory in the agent environment.
+    # So, we can just write to the filename directly.
+    output_path = output_filename
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(jmx_content)
+
+    print(f"\\n--- Export Successful ---")
+    print(f"JMeter test plan has been saved to: {os.path.abspath(output_path)}")
+    print("---------------------------")
 
 
 if __name__ == "__main__":
