@@ -3,6 +3,8 @@ import json
 from playwright.async_api import async_playwright
 from typing import Dict, Any, List
 
+from .test_generator import generate_basic_load_test
+
 async def extract_forms(page) -> List[Dict[str, Any]]:
     forms_data = []
     for form in await page.locator('form').all():
@@ -98,19 +100,31 @@ async def analyze_page(url: str) -> Dict[str, Any]:
 
 async def main():
     """
-    Main function to test the page analysis logic.
+    Main function to test the page analysis and test generation logic.
     """
     url = "http://books.toscrape.com/"
     print(f"Starting to analyze page: {url}")
     analysis_data = await analyze_page(url)
 
-    if 'error' not in analysis_data:
-        print("\\n--- Analysis Successful ---")
-        # Pretty print the JSON
-        print(json.dumps(analysis_data, indent=2))
-        print("-----------------------------")
-    else:
+    if 'error' in analysis_data:
         print(f"\\n--- Analysis Failed: {analysis_data['error']} ---")
+        return
+
+    print("\\n--- Analysis Successful ---")
+
+    print("Generating test case from analysis...")
+    test_case_data = generate_basic_load_test(analysis_data)
+    print("Test case generation complete.")
+
+    final_output = {
+        "component_analysis": analysis_data,
+        "generated_test_case": test_case_data
+    }
+
+    print("\\n--- Final Output ---")
+    # Pretty print the combined JSON
+    print(json.dumps(final_output, indent=2))
+    print("----------------------")
 
 
 if __name__ == "__main__":
