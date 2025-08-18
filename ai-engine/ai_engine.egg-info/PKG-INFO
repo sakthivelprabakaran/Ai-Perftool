@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: ai_engine
+Version: 0.1.0
+Summary: The core AI analysis engine for performance test case generation.
+Requires-Dist: playwright
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-asyncio; extra == "dev"
+Requires-Dist: black; extra == "dev"
+Requires-Dist: ruff; extra == "dev"

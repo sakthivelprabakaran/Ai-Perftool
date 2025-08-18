@@ -1,0 +1,15 @@
+[project]
+name = "ai_engine"
+version = "0.1.0"
+description = "The core AI analysis engine for performance test case generation."
+dependencies = [
+    "playwright"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "black",
+    "ruff"
+]

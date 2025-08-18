@@ -1,0 +1,7 @@
+playwright
+
+[dev]
+pytest
+pytest-asyncio
+black
+ruff
