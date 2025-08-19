@@ -1,11 +1,12 @@
 import asyncio
-import json
+import argparse
 import os
 from playwright.async_api import async_playwright
 from typing import Dict, Any, List
 
 from .test_generator import generate_basic_load_test
 from .jmeter_exporter import export_to_jmx
+from .loadrunner_exporter import export_to_loadrunner
 
 async def extract_forms(page) -> List[Dict[str, Any]]:
     forms_data = []
@@ -19,7 +20,6 @@ async def extract_forms(page) -> List[Dict[str, Any]]:
             'selects': [],
             'textareas': []
         }
-        # Extract inputs within the form
         for inp in await form.locator('input').all():
             form_details['inputs'].append({
                 'type': await inp.get_attribute('type'),
@@ -27,21 +27,18 @@ async def extract_forms(page) -> List[Dict[str, Any]]:
                 'id': await inp.get_attribute('id'),
                 'placeholder': await inp.get_attribute('placeholder'),
             })
-        # Extract buttons within the form
         for btn in await form.locator('button').all():
              form_details['buttons'].append({
                 'type': await btn.get_attribute('type'),
                 'id': await btn.get_attribute('id'),
                 'text': await btn.inner_text(),
             })
-        # Extract selects within the form
         for sel in await form.locator('select').all():
              form_details['selects'].append({
                 'name': await sel.get_attribute('name'),
                 'id': await sel.get_attribute('id'),
                 'options': [await o.get_attribute('value') for o in await sel.locator('option').all()]
             })
-        # Extract textareas within the form
         for ta in await form.locator('textarea').all():
              form_details['textareas'].append({
                 'name': await ta.get_attribute('name'),
@@ -52,7 +49,6 @@ async def extract_forms(page) -> List[Dict[str, Any]]:
 
 async def extract_standalone_buttons(page) -> List[Dict[str, Any]]:
     buttons_data = []
-    # Find buttons that are not inside a form
     for btn in await page.locator('button:not(form button)').all():
         buttons_data.append({
             'id': await btn.get_attribute('id'),
@@ -63,7 +59,6 @@ async def extract_standalone_buttons(page) -> List[Dict[str, Any]]:
 
 async def extract_nav_links(page) -> List[Dict[str, Any]]:
     links_data = []
-    # Using a more specific selector for the category sidebar on books.toscrape.com
     for link in await page.locator('.side_categories ul li a').all():
         links_data.append({
             'href': await link.get_attribute('href'),
@@ -72,12 +67,7 @@ async def extract_nav_links(page) -> List[Dict[str, Any]]:
         })
     return links_data
 
-
 async def analyze_page(url: str) -> Dict[str, Any]:
-    """
-    Launches a headless browser, navigates to the URL, extracts components,
-    and returns them as a structured dictionary.
-    """
     analysis_result = {'url': url, 'forms': [], 'buttons': [], 'nav_links': []}
     async with async_playwright() as p:
         browser = await p.chromium.launch()
@@ -86,11 +76,9 @@ async def analyze_page(url: str) -> Dict[str, Any]:
             print(f"Navigating to {url}...")
             await page.goto(url, timeout=60000)
             print("Page loaded. Starting component extraction...")
-
             analysis_result['forms'] = await extract_forms(page)
             analysis_result['buttons'] = await extract_standalone_buttons(page)
             analysis_result['nav_links'] = await extract_nav_links(page)
-
             print("Component extraction complete.")
             return analysis_result
         except Exception as e:
@@ -101,11 +89,17 @@ async def analyze_page(url: str) -> Dict[str, Any]:
             print("Browser closed.")
 
 async def main():
-    """
-    Main function to run the full analysis, generation, and export pipeline.
-    """
+    parser = argparse.ArgumentParser(description="AI-Powered Performance Test Case Generator")
+    parser.add_argument(
+        '--format',
+        type=str,
+        choices=['jmeter', 'loadrunner'],
+        default='jmeter',
+        help='The output format for the generated test script.'
+    )
+    args = parser.parse_args()
+
     url = "http://books.toscrape.com/"
-    output_filename = "test_plan.jmx"
 
     print(f"Starting to analyze page: {url}")
     analysis_data = await analyze_page(url)
@@ -117,20 +111,20 @@ async def main():
     print("Generating test case from analysis...")
     test_case_data = generate_basic_load_test(analysis_data)
 
-    print("Exporting test case to JMX format...")
-    jmx_content = export_to_jmx(test_case_data)
+    print(f"Exporting test case to {args.format.capitalize()} format...")
 
-    # The script is run from the `/app` directory in the agent environment.
-    # So, we can just write to the filename directly.
-    output_path = output_filename
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(jmx_content)
-
-    print(f"\\n--- Export Successful ---")
-    print(f"JMeter test plan has been saved to: {os.path.abspath(output_path)}")
-    print("---------------------------")
-
+    if args.format == 'jmeter':
+        jmx_content = export_to_jmx(test_case_data)
+        output_filename = "test_plan.jmx"
+        with open(output_filename, "w", encoding="utf-8") as f:
+            f.write(jmx_content)
+        print(f"\\n--- Export Successful ---")
+        print(f"JMeter test plan has been saved to: {os.path.abspath(output_filename)}")
+        print("---------------------------")
+    elif args.format == 'loadrunner':
+        script_name = "GeneratedLRScript"
+        export_to_loadrunner(test_case_data, script_name, output_dir=".")
+        print("\\n--- Export Complete ---")
 
 if __name__ == "__main__":
     asyncio.run(main())
