@@ -1,0 +1,14 @@
+[project]
+name = "analyzer_backend"
+version = "0.1.0"
+description = "The backend API for the AI-Powered Performance Test Case Generator."
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "ai-engine @ file://localhost/app/ai-engine"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest"
+]

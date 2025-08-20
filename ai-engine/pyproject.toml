@@ -3,7 +3,9 @@ name = "ai_engine"
 version = "0.1.0"
 description = "The core AI analysis engine for performance test case generation."
 dependencies = [
-    "playwright"
+    "playwright",
+    "fastapi",
+    "uvicorn[standard]"
 ]
 
 [project.optional-dependencies]

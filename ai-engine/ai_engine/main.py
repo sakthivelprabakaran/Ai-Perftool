@@ -2,7 +2,7 @@ import asyncio
 import argparse
 import os
 from playwright.async_api import async_playwright
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from .test_generator import generate_basic_load_test
 from .jmeter_exporter import export_to_jmx
@@ -67,11 +67,15 @@ async def extract_nav_links(page) -> List[Dict[str, Any]]:
         })
     return links_data
 
-async def analyze_page(url: str) -> Dict[str, Any]:
+async def analyze_page(url: str, browser = None) -> Dict[str, Any]:
+    """
+    Launches a headless browser if one isn't provided, navigates to the URL,
+    extracts components, and returns them as a structured dictionary.
+    """
     analysis_result = {'url': url, 'forms': [], 'buttons': [], 'nav_links': []}
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page()
+
+    async def get_page_analysis(a_browser):
+        page = await a_browser.new_page()
         try:
             print(f"Navigating to {url}...")
             await page.goto(url, timeout=60000)
@@ -81,12 +85,25 @@ async def analyze_page(url: str) -> Dict[str, Any]:
             analysis_result['nav_links'] = await extract_nav_links(page)
             print("Component extraction complete.")
             return analysis_result
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return {'error': str(e)}
         finally:
-            await browser.close()
-            print("Browser closed.")
+            # We only close the page, not the browser, as the browser might be shared
+            await page.close()
+
+    try:
+        if browser:
+            # Use the provided browser instance
+            return await get_page_analysis(browser)
+        else:
+            # Create and manage a new browser instance
+            async with async_playwright() as p:
+                new_browser = await p.chromium.launch()
+                try:
+                    return await get_page_analysis(new_browser)
+                finally:
+                    await new_browser.close()
+    except Exception as e:
+        print(f"An error occurred during analysis: {e}")
+        return {'error': str(e)}
 
 async def main():
     parser = argparse.ArgumentParser(description="AI-Powered Performance Test Case Generator")
@@ -102,7 +119,8 @@ async def main():
     url = "http://books.toscrape.com/"
 
     print(f"Starting to analyze page: {url}")
-    analysis_data = await analyze_page(url)
+    # Pass no browser instance to use the standalone mode
+    analysis_data = await analyze_page(url=url)
 
     if 'error' in analysis_data:
         print(f"\\n--- Analysis Failed: {analysis_data['error']} ---")

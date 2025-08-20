@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 from typing import Dict, Any
 from urllib.parse import urlparse
+import os
 
 def _pretty_print_xml(elem) -> str:
     """Returns a pretty-printed XML string for the Element."""
@@ -21,9 +22,9 @@ def _create_bool_prop(name: str, value: bool) -> ET.Element:
     el.text = str(value).lower()
     return el
 
-def export_to_jmx(test_case_data: Dict[str, Any]) -> str:
+def export_to_jmx(test_case_data: Dict[str, Any], filename: str, output_dir: str = ".") -> str:
     """
-    Exports a test case dictionary to a JMeter .jmx file format (XML string).
+    Exports a test case dictionary to a JMeter .jmx file and returns the full path.
     """
     # Root element
     jmeter_test_plan = ET.Element("jmeterTestPlan", {"version": "1.2", "properties": "5.0", "jmeter": "5.5"})
@@ -42,12 +43,10 @@ def export_to_jmx(test_case_data: Dict[str, Any]) -> str:
     thread_group = ET.SubElement(test_plan_hash_tree, "ThreadGroup", {"guiclass": "ThreadGroupGui", "testclass": "ThreadGroup", "testname": "Load Test Users", "enabled": "true"})
     thread_group.append(_create_string_prop("ThreadGroup.on_sample_error", "continue"))
 
-    # Loop controller for thread group
     loop_controller = ET.SubElement(thread_group, "elementProp", {"name": "ThreadGroup.main_controller", "elementType": "LoopController", "guiclass": "LoopControlPanel", "testclass": "LoopController", "testname": "Loop Controller", "enabled": "true"})
     loop_controller.append(_create_bool_prop("LoopController.continue_forever", False))
     loop_controller.append(_create_string_prop("LoopController.loops", "1"))
 
-    # Thread group properties
     thread_group.append(_create_string_prop("ThreadGroup.num_threads", str(load_profile.get("concurrent_users", 1))))
     thread_group.append(_create_string_prop("ThreadGroup.ramp_time", str(load_profile.get("ramp_up_seconds", 1))))
     thread_group.append(_create_bool_prop("ThreadGroup.scheduler", True))
@@ -78,7 +77,13 @@ def export_to_jmx(test_case_data: Dict[str, Any]) -> str:
         http_sampler.append(_create_string_prop("HTTPSampler.connect_timeout", ""))
         http_sampler.append(_create_string_prop("HTTPSampler.response_timeout", ""))
 
-        # HashTree for the sampler
         ET.SubElement(thread_group_hash_tree, "hashTree")
 
-    return _pretty_print_xml(jmeter_test_plan)
+    jmx_content = _pretty_print_xml(jmeter_test_plan)
+
+    # Save the file and return the path
+    output_path = os.path.join(output_dir, filename)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(jmx_content)
+
+    return os.path.abspath(output_path)

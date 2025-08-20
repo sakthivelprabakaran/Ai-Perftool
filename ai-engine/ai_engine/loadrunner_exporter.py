@@ -104,7 +104,6 @@ def _generate_action_c_content(test_case_data: Dict[str, Any]) -> str:
         step_name = step.get("text", f"Step {i+1}").replace('"', '\\"')
         target_url = step.get("target", "").replace('"', '\\"')
 
-        # A simplified web_url call
         web_url_call = f'    web_url("Request {i+1}_{step_name}",\\n'
         web_url_call += f'        "URL={target_url}",\\n'
         web_url_call += '        "Resource=0",\\n'
@@ -116,9 +115,9 @@ def _generate_action_c_content(test_case_data: Dict[str, Any]) -> str:
     steps_str = "\\n\\n".join(steps_code)
     return f"Action()\\n{{\\n{steps_str}\\n\\n    return 0;\\n}}"
 
-def export_to_loadrunner(test_case_data: Dict[str, Any], script_name: str, output_dir: str = "."):
+def export_to_loadrunner(test_case_data: Dict[str, Any], script_name: str, output_dir: str = ".") -> str:
     """
-    Exports a test case to a LoadRunner script structure.
+    Exports a test case to a LoadRunner script structure and returns the path.
     """
     script_path = os.path.join(output_dir, script_name)
     os.makedirs(script_path, exist_ok=True)
@@ -140,4 +139,4 @@ def export_to_loadrunner(test_case_data: Dict[str, Any], script_name: str, outpu
         with open(os.path.join(script_path, filename), "w", encoding="utf-8") as f:
             f.write(content)
 
-    print(f"LoadRunner script '{script_name}' created at {os.path.abspath(script_path)}")
+    return os.path.abspath(script_path)
